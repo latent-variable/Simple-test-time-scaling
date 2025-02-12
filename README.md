@@ -5,7 +5,7 @@
 
 ![Budget Forcing Demo](budget_forcing.gif)
 
-Based on the test-time scaling approach from the s1 paper, this pipeline guarantees that a minimum number of tokens is produced (by appending "Wait" if needed) and forcefully terminates the reasoning process once an upper threshold is reached.
+Based on the test-time scaling approach from the [s1 paper](https://arxiv.org/pdf/2501.19393), this pipeline guarantees that a minimum number of tokens is produced (by appending "Wait" if needed) and forcefully terminates the reasoning process once an upper threshold is reached.
 
 ## Features
 - **Multi-API Support**: Seamlessly switch between OpenAI and Ollama APIs.
