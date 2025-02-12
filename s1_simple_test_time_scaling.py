@@ -2,10 +2,10 @@
 title: Budget Forcing Reasoning Pipe
 author: latent-variable
 github: https://github.com/latent-variable/Simple-test-time-scaling
-open-webui: https://openwebui.com/f/latentvariable/Simple-test-time-scaling/
+open-webui: https://openwebui.com/f/latentvariable/budget_forcing_reasoning_pipe
 Set up instructions: https://o1-at-home.hashnode.dev/run-o1-at-home-privately-think-respond-pipe-tutorial-with-open-webui-ollama
 version: 0.1.0
-description: s1: Simple test-time scaling pipeline for models like deepseek-r1 models with OpenAI/Ollama support.
+description: s1: Simple test-time scaling pipeline for models like deepseek-r1 models with Ollama support.
 Directly compatible with build in reasoning formater 
 Compatible: open-webui v0.5.x
 
