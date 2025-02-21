@@ -4,7 +4,7 @@ author: latent-variable
 github: https://github.com/latent-variable/Simple-test-time-scaling
 open-webui: https://openwebui.com/f/latentvariable/budget_forcing_reasoning_pipe
 Set up instructions: https://o1-at-home.hashnode.dev/run-o1-at-home-privately-think-respond-pipe-tutorial-with-open-webui-ollama
-version: 0.1.0
+version: 0.2.0
 description: s1: Simple test-time scaling pipeline for models like deepseek-r1 models using a direct Ollama API call.
 Directly compatible with build in reasoning formatter.
 Compatible: open-webui v0.5.x
@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from fastapi import Request
 import aiohttp
 import logging
+from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -87,11 +88,8 @@ class Pipe:
         name = f"BudgetForcing_{self.valves.REASONING_MODEL}"
         return [{"name": name, "id": name}]
 
+    @asynccontextmanager
     async def get_response(self, model: str, messages: List[Dict], stream: bool):
-        """
-        Call the Ollama API directly using aiohttp.
-        The payload now includes "options": { "num_ctx": <CONTEXT_SIZE> }
-        """
         payload = {
             "model": model,
             "messages": messages,
@@ -101,14 +99,10 @@ class Pipe:
             }
         }
         api_url = self.valves.OLLAMA_API_URL
-        try:
-            session = aiohttp.ClientSession()
-            response = await session.post(api_url, json=payload)
-            response.raise_for_status()
-            return response
-        except Exception as e:
-            logger.error(f"API Error (Ollama): {str(e)}")
-            raise
+        async with aiohttp.ClientSession() as session:
+            async with session.post(api_url, json=payload) as response:
+                response.raise_for_status()
+                yield response
 
     async def _handle_api_stream(self, response) -> AsyncGenerator[str, None]:
         """
@@ -132,9 +126,6 @@ class Pipe:
         await response.release()
 
     async def _generate_reasoning(self, messages: List[Dict], __event_emitter__) -> AsyncGenerator[str, None]:
-        """
-        Continually request reasoning until termination conditions are met.
-        """
         original_messages = messages.copy()
         self.buffer = ""
         self.generated_thinking_tokens = 0
@@ -146,36 +137,32 @@ class Pipe:
                 current_messages = original_messages.copy()
                 if self.buffer:
                     current_messages.append({"role": "assistant", "content": self.buffer})
-                response = await self.get_response(
-                    model=self.valves.REASONING_MODEL,
-                    messages=current_messages,
-                    stream=True
-                )
-                async for content in self._handle_api_stream(response):
-                    status = f"{self.generated_thinking_tokens} reasoning tokens"
-                    await self.emit_status(status, __event_emitter__, done=False)
-                    if self.generated_thinking_tokens >= self.valves.MAX_THINKING_TOKENS:
-                        yield f"\n{self.valves.END_THINK_TOKEN}"
-                        self.buffer += f"\n{self.valves.END_THINK_TOKEN}"
-                        reached_maximum_thinking = True
-                        break
-
-                    if self.valves.END_THINK_TOKEN.strip() in content.strip():
-                        if self.generated_thinking_tokens < self.valves.MIN_THINKING_TOKENS:
-                            content = content.replace(self.valves.END_THINK_TOKEN, "")
-                            yield " Wait"
-                            self.buffer += " Wait"
-                            self.generated_thinking_tokens += 1
-                            break  # Exit streaming loop to continue reasoning
-                        else:
-                            yield content
+                async with self.get_response(self.valves.REASONING_MODEL, current_messages, stream=True) as response:
+                    async for content in self._handle_api_stream(response):
+                        status = f"{self.generated_thinking_tokens} reasoning tokens"
+                        await self.emit_status(status, __event_emitter__, done=False)
+                        if self.generated_thinking_tokens >= self.valves.MAX_THINKING_TOKENS:
+                            yield f"\n{self.valves.END_THINK_TOKEN}"
+                            self.buffer += f"\n{self.valves.END_THINK_TOKEN}"
                             reached_maximum_thinking = True
                             break
-                    else:
-                        self.generated_thinking_tokens += 1
-                        yield content
-                        self.buffer += content
-                del response
+
+                        if self.valves.END_THINK_TOKEN.strip() in content.strip():
+                            if self.generated_thinking_tokens < self.valves.MIN_THINKING_TOKENS:
+                                content = content.replace(self.valves.END_THINK_TOKEN, "")
+                                print("Extending")
+                                yield " Wait"
+                                self.buffer += " Wait"
+                                self.generated_thinking_tokens += 1
+                                break
+                            else:
+                                yield content
+                                reached_maximum_thinking = True
+                                break
+                        else:
+                            self.generated_thinking_tokens += 1
+                            yield content
+                            self.buffer += content
                 if reached_maximum_thinking:
                     final_response_complete = True
         except Exception as e:
