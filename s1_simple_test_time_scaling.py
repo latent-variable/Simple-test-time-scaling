@@ -45,32 +45,30 @@ class Pipe:
     class Valves(BaseModel):
         REASONING_MODEL: str = Field(
             default="deepseek-r1:8b",
-            description="Model for reasoning phase (Ollama model id)"
+            description="Model for reasoning phase (Ollama model id)",
         )
         OLLAMA_API_URL: str = Field(
             default="http://host.docker.internal:11434/api/chat",
-            description="Direct API URL for Ollama (e.g. http://host.docker.internal:11434/api/chat)"
+            description="Direct API URL for Ollama (e.g. http://host.docker.internal:11434/api/chat)",
         )
         CONTEXT_SIZE: int = Field(
-            default=2048,
-            description="Context size to pass to the Ollama API (used as options.num_ctx)"
+            default=16368,
+            description="Context size to pass to the Ollama API (used as options.num_ctx)",
         )
         # Budget forcing parameters (from the s1 paper)
         MIN_THINKING_TOKENS: int = Field(
-            default=100,
-            description="Minimum number of thinking tokens required before termination is allowed"
+            default=400,
+            description="Minimum number of thinking tokens required before termination is allowed",
         )
         MAX_THINKING_TOKENS: int = Field(
-            default=300,
-            description="Maximum number of thinking tokens allowed before forcing termination"
+            default=800,
+            description="Maximum number of thinking tokens allowed before forcing termination",
         )
         START_THINK_TOKEN: str = Field(
-            default="<think>",
-            description="Token indicating reasoning phase start"
+            default="<think>", description="Token indicating reasoning phase start"
         )
         END_THINK_TOKEN: str = Field(
-            default="</think>",
-            description="Token indicating reasoning phase end"
+            default="</think>", description="Token indicating reasoning phase end"
         )
 
     def __init__(self):
